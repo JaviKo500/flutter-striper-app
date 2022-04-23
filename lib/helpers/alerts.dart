@@ -21,7 +21,10 @@ showAlert( BuildContext context, String title, String message ) {
       actions: [
         MaterialButton(
           child: const Text( 'ok' ),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            Navigator.of(context).pop();
+            // Navigator.pop(context);
+          },
         )
       ],
     )

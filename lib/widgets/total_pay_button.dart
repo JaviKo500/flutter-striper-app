@@ -1,38 +1,51 @@
-
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+import 'package:stripe_app/blocs/pay/pay_bloc.dart';
+import 'package:stripe_app/helpers/helpers.dart';
+import 'package:stripe_app/services/stripe_service.dart';
+import 'package:stripe_payment/stripe_payment.dart';
 
 class TotalPayButton extends StatelessWidget {
   const TotalPayButton({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final payBloc = context.read<PayBloc>();
     final width = MediaQuery.of(context).size.width;
     return Container(
       width: width,
       height: 100,
-      padding: const EdgeInsets.symmetric( horizontal: 15 ),
+      padding: const EdgeInsets.symmetric(horizontal: 15),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30)
-        )
-      ),
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(30), topRight: Radius.circular(30))),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Text( 'Total:', style: TextStyle( fontSize: 20, fontWeight: FontWeight.bold), ),
-              Text( '250.55 USD', style: TextStyle( fontSize: 20) )
+            children: [
+              const Text(
+                'Total:',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '${payBloc.state.totalPay} ${payBloc.state.currency}', 
+                style: const TextStyle(fontSize: 20)
+              )
             ],
           ),
-          const _BtnPay()
+          BlocBuilder<PayBloc, PayState>(
+            builder: (context, state) {
+              return _BtnPay( state: state );
+            },
+          )
         ],
       ),
     );
@@ -40,11 +53,12 @@ class TotalPayButton extends StatelessWidget {
 }
 
 class _BtnPay extends StatelessWidget {
-  const _BtnPay({Key? key}) : super(key: key);
-  
+  final PayState state;
+  const _BtnPay({Key? key, required this.state}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    return true ? buildCardButton(context) : buildAppleAndGooglePay(context);
+    return state.isActiveCard ? buildCardButton(context) : buildAppleAndGooglePay(context);
   }
 
   Widget buildCardButton(BuildContext context) {
@@ -56,18 +70,38 @@ class _BtnPay extends StatelessWidget {
       color: Colors.black,
       child: Row(
         children: const [
-          Icon( 
-            FontAwesomeIcons.solidCreditCard ,
+          Icon(
+            FontAwesomeIcons.solidCreditCard,
             color: Colors.white,
           ),
-          Text( '  Payment', style: TextStyle( color: Colors.white, fontSize: 22))
+          Text('  Payment', style: TextStyle(color: Colors.white, fontSize: 22))
         ],
       ),
-      onPressed: () {
-        
+      onPressed: () async {
+        showLoading(context);
+        final stripeService = StripeService();
+        final card = state.card!;
+        final monthYear = card.expiracyDate.split('/');
+        final resp = await stripeService.payWithExistCard(
+          amount: state.amount, 
+          currency: state.currency, 
+          card: CreditCard(
+            number: card.cardNumber,
+            expMonth: int.parse(monthYear[0]),
+            expYear: int.parse(monthYear[1]),
+          )
+        );
+
+        Navigator.pop(context);
+        if ( resp.ok ) {
+          showAlert(context, 'Credit Card ok', 'Success Payment');
+        } else {
+          showAlert(context, 'Upsssss!', resp.msg!);
+        }
       },
     );
   }
+
   Widget buildAppleAndGooglePay(BuildContext context) {
     return MaterialButton(
       height: 45,
@@ -77,15 +111,22 @@ class _BtnPay extends StatelessWidget {
       color: Colors.black,
       child: Row(
         children: [
-          Icon( 
-            Platform.isAndroid ? FontAwesomeIcons.google : FontAwesomeIcons.apple ,
+          Icon(
+            Platform.isAndroid
+                ? FontAwesomeIcons.google
+                : FontAwesomeIcons.apple,
             color: Colors.white,
           ),
-          const Text( ' Pay', style: TextStyle( color: Colors.white, fontSize: 22))
+          const Text(' Pay',
+              style: TextStyle(color: Colors.white, fontSize: 22))
         ],
       ),
-      onPressed: () {
-        
+      onPressed: () async {
+        final stripeService = StripeService();
+        final resp = await stripeService.payWithApplePayGooglePay(
+          amount: state.amount, 
+          currency: state.currency
+        );
       },
     );
   }

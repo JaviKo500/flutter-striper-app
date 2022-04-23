@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_credit_card/credit_card_widget.dart';
 
 import 'package:stripe_app/data/cards.dart';
-import 'package:stripe_app/pages/pages.dart';
 import 'package:stripe_app/helpers/helpers.dart';
+import 'package:stripe_app/pages/pages.dart';
+import 'package:stripe_app/blocs/pay/pay_bloc.dart';
+import 'package:stripe_app/services/stripe_service.dart';
 import 'package:stripe_app/widgets/total_pay_button.dart';
 
 
 class HomePage extends StatelessWidget {
 
-  const HomePage({Key? key}) : super(key: key);
+  final stripeService = StripeService();
+
+  HomePage({Key? key}) : super(key: key);
 
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final payBloc = BlocProvider.of<PayBloc>(context);
     return Scaffold(
       appBar: AppBar(
         title: const Center(child: Text( 'Pay' )),
@@ -22,10 +28,21 @@ class HomePage extends StatelessWidget {
           IconButton(
             icon: const Icon( Icons.add ),
             onPressed: () async {
-              // showLoading(context);
               // await Future.delayed( const Duration( seconds: 1 ) );
-              // Navigator.pop(context);
-              showAlert(context, 'hello', 'world');
+              // showAlert(context, 'hello', 'world');
+              showLoading(context);
+              final amount = payBloc.state.amount;
+              final currency = payBloc.state.currency;
+              final resp = await stripeService.payWithNewCard(
+                amount: amount, 
+                currency: currency
+              );
+              Navigator.pop(context);
+              if ( resp.ok ) {
+                showAlert(context, 'Credit Card ok', 'Success Payment');
+              } else {
+                showAlert(context, 'Upsssss!', resp.msg!);
+              }
             },
           )
         ],
@@ -57,6 +74,7 @@ class HomePage extends StatelessWidget {
                     ),
                   ),
                   onTap: () {
+                    payBloc.add( OnSelectCardEvent( card ) );
                     Navigator.push(context, navigationFadeIn(context, const CardPage()));
                   },
                 );

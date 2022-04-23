@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:stripe_app/blocs/pay/pay_bloc.dart';
 
 import 'package:stripe_app/pages/pages.dart';
+import 'package:stripe_app/services/stripe_service.dart';
 
 void main() => runApp(const MyApp());
 
@@ -9,17 +12,25 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Material App',
-      initialRoute: '/home',
-      routes: {
-        '/home': ( _ ) => const HomePage(),
-        '/complete_pay': ( _ ) => const FullPayment(),
-      },
-      theme: ThemeData.light().copyWith(
-        primaryColor: const Color(0xff284879),
-        scaffoldBackgroundColor: Color(0xff21232A)
+    //Stripe service init
+    StripeService().init();
+
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: ( _ ) => PayBloc())
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Material App',
+        initialRoute: '/home',
+        routes: {
+          '/home': ( _ ) => HomePage(),
+          '/complete_pay': ( _ ) => const FullPayment(),
+        },
+        theme: ThemeData.light().copyWith(
+          primaryColor: const Color(0xff284879),
+          scaffoldBackgroundColor: const Color(0xff21232A)
+        ),
       ),
     );
   }
